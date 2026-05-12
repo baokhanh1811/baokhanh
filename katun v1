@@ -1,0 +1,97 @@
+--[[
+    SCRIPT: BẢO KHANH KATUN SUPREME HUB (KAVO FIX)
+    KEY: HPbaokhanh
+]]
+
+local Kavo = loadstring(game:HttpGet("https://githubusercontent.com"))()
+local Window = Kavo.CreateLib("Bảo khanh katun | 👑 SUPREME", "DarkScene")
+
+-- KEY SYSTEM TRỰC TIẾP
+local KeyTab = Window:NewTab("🔑 Nhập Key")
+local KeySection = KeyTab:NewSection("Vui lòng nhập Key để mở Script")
+
+KeySection:NewTextBox("Nhập Key Tại Đây", "Key là HPbaokhanh", function(text)
+    if text == "HPbaokhanh" then
+        -- THÔNG BÁO KHI NHẬP ĐÚNG
+        print("Key Đúng! Chào mừng Bảo khanh katun")
+        
+        -- TAB TRANG CHỦ (Hiển thị sau khi nhập key)
+        local MainTab = Window:NewTab("🏠 Trang Chủ")
+        local MainSection = MainTab:NewSection("Chủ sở hữu: Bảo khanh katun")
+        MainSection:NewLabel("Chào mừng Đại Boss Bảo khanh")
+
+        -- TAB AUTO FARM LEVEL
+        local FarmTab = Window:NewTab("🌾 Farm Cấp")
+        local FarmSection = FarmTab:NewSection("Cày Cấp Tự Động")
+        FarmSection:NewToggle("Bật Auto Farm Level", "Tự động nhận quest và đánh quái", function(state)
+            _G.AutoFarmLevel = state
+        end)
+
+        -- TAB TỘC V4 (TỰ NHÌN & TỰ LẤY GEAR)
+        local V4Tab = Window:NewTab("⚙️ Tộc V4 Pro")
+        local V4Section = V4Tab:NewSection("Nhiệm vụ Mirage & Gear")
+        
+        V4Section:NewButton("1. Nói chuyện với MY_GAME43", "Tới Great Tree", function()
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("TalkToNPC", "My_Game43")
+        end)
+
+        V4Section:NewToggle("2. Auto Nhìn Trăng", "Tự xoay camera nhìn mặt trăng", function(state)
+            _G.AutoLookMoon = state
+            task.spawn(function()
+                while _G.AutoLookMoon do task.wait()
+                    pcall(function()
+                        local mirage = game:GetService("Workspace").Map:FindFirstChild("Mirage Island")
+                        if mirage then
+                            local moon = mirage:FindFirstChild("MoonLocation") or {Position = Vector3.new(0, 1000, 0)}
+                            workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, moon.Position)
+                            game:GetService("VirtualInputManager"):SendKeyEvent(true, "T", false, game)
+                        end
+                    end)
+                end
+            end)
+        end)
+
+        V4Section:NewButton("3. Auto Nhặt Bánh Răng", "Tự nhặt Gear khi đã nhìn trăng", function()
+            local gear = game.Workspace:FindFirstChild("MysteriousGear", true)
+            if gear then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = gear.CFrame
+                task.wait(0.2)
+                fireclickdetector(gear:FindFirstChildOfClass("ClickDetector"))
+            end
+        end)
+
+        -- TAB SIÊU BOSS
+        local BossTab = Window:NewTab("👹 Siêu Boss")
+        local BossSection = BossTab:NewSection("Triệu hồi Boss Khủng")
+        BossSection:NewButton("Săn Rip Indra (Cúp/Nút)", "Auto All", function() _G.AutoIndra = true end)
+        BossSection:NewButton("Săn Katakuri V2 (500 Quái)", "Auto All", function() _G.AutoKatakuri = true end)
+
+    else
+        print("Key Sai!")
+    end
+end)
+
+-- LOGIC VẬN HÀNH (FARM & FAST ATTACK)
+task.spawn(function()
+    while task.wait() do
+        if _G.AutoFarmLevel then
+            pcall(function()
+                for _, v in pairs(game.Workspace.Enemies:GetChildren()) do
+                    if v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+                        v.HumanoidRootPart.CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -10)
+                        v.HumanoidRootPart.CanCollide = false
+                        -- Fast Attack
+                        local cf = require(game.Players.LocalPlayer.PlayerScripts.CombatFramework)
+                        if cf.activeController and cf.activeController.equippedItem then 
+                            cf.activeController:attack() 
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Chống AFK Delta
+for _, v in pairs(getconnections(game:GetService("Players").LocalPlayer.Idled)) do v:Disable() end
+
