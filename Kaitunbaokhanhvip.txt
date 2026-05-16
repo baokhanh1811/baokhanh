@@ -431,7 +431,7 @@ Instance.new("UICorner", avatar).CornerRadius = UDim.new(1,0)
 
 -- Title & Subtitle
 local title = Instance.new("TextLabel")
-title.Text = "Kaitun TamNguyenHub"
+title.Text = "Kaitun baokhanhHub"
 title.Font = Enum.Font.GothamBold
 title.TextSize = 22
 title.TextColor3 = Color3.fromRGB(120,200,255)
