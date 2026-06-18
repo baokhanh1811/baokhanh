@@ -1,0 +1,349 @@
+// === PALOFSC: GROW A GARDEN 2 SCRIPT (LUAU) ===
+// Hỗ trợ: Krnl, Synapse X, ScriptWare, Fluxus
+// Tính năng: Auto Plant, Auto Water, Auto Harvest, Auto Sell, Auto Fertilize,
+// Auto Buy Seeds, Auto Upgrade, Auto Quest, Auto Collect, ESP, Teleport
+
+-- ====== KHỞI TẠO ======
+local Player = game:GetService("Players").LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local Root = Character:WaitForChild("HumanoidRootPart")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local VirtualUser = game:GetService("VirtualUser")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local CollectionService = game:GetService("CollectionService")
+
+-- ====== CẤU HÌNH ======
+local Config = {
+    AutoPlant = false,
+    AutoWater = false,
+    AutoHarvest = false,
+    AutoSell = false,
+    AutoFertilize = false,
+    AutoBuySeeds = false,
+    AutoUpgrade = false,
+    AutoQuest = false,
+    AutoCollect = false,
+    TeleportToGarden = false,
+    ESP = false,
+    FastMode = false,
+    PlantDelay = 1,
+    WaterDelay = 2,
+    HarvestDelay = 1.5,
+    SellDelay = 1,
+}
+
+-- ====== DANH SÁCH VẬT PHẨM ======
+local Seeds = {"Seed", "TomatoSeed", "WheatSeed", "CornSeed", "CarrotSeed", "BerrySeed"}
+local Plants = {"Plant", "Tomato", "Wheat", "Corn", "Carrot", "Berry"}
+local Tools = {"WateringCan", "Hoe", "Scythe", "Fertilizer", "SellBox"}
+
+-- ====== HÀM TIỆN ÍCH ======
+local function GetNearestItem(tag, maxDist)
+    local best, bestDist = nil, math.huge
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v:IsA("BasePart") and CollectionService:HasTag(v, tag) then
+            local dist = (Root.Position - v.Position).Magnitude
+            if dist < maxDist and dist < bestDist then
+                best, bestDist = v, dist
+            end
+        end
+    end
+    return best, bestDist
+end
+
+local function GetNearestPlant(maxDist)
+    local best, bestDist = nil, math.huge
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v:IsA("Model") and v:FindFirstChild("Humanoid") == nil and v:FindFirstChild("Fruit") then
+            local pos = v:FindFirstChild("Head") or v:FindFirstChild("Handle") or v.PrimaryPart
+            if pos then
+                local dist = (Root.Position - pos.Position).Magnitude
+                if dist < maxDist and dist < bestDist then
+                    best, bestDist = v, dist
+                end
+            end
+        end
+    end
+    return best, bestDist
+end
+
+local function MoveTo(position)
+    if not position then return end
+    local tween = TweenService:Create(Root, TweenInfo.new(0.5, Enum.EasingStyle.Linear), {CFrame = CFrame.new(position)})
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+local function EquipTool(toolName)
+    local tool = Player.Backpack:FindFirstChild(toolName) or Character:FindFirstChild(toolName)
+    if tool then
+        if tool.Parent == Player.Backpack then
+            tool.Parent = Character
+        end
+        return tool
+    end
+    return nil
+end
+
+local function UseTool(toolName)
+    local tool = EquipTool(toolName)
+    if tool then
+        tool:Activate()
+        wait(0.3)
+        return true
+    end
+    return false
+end
+
+local function InteractWith(part)
+    if not part then return end
+    Root.CFrame = CFrame.new(Root.Position, part.Position)
+    wait(0.2)
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+    wait(0.3)
+end
+
+-- ====== TỰ ĐỘNG TRỒNG ======
+spawn(function()
+    while true do
+        if Config.AutoPlant then
+            local seed = GetNearestItem("Seed", 50)
+            if seed then
+                MoveTo(seed.Position)
+                if UseTool("Hoe") then
+                    wait(Config.PlantDelay)
+                    InteractWith(seed)
+                    wait(Config.PlantDelay)
+                end
+            else
+                if Config.AutoBuySeeds then
+                    -- Mua hạt giống từ NPC
+                    local npc = Workspace:FindFirstChild("SeedSeller")
+                    if npc then
+                        MoveTo(npc.PrimaryPart.Position)
+                        InteractWith(npc.PrimaryPart)
+                        wait(1)
+                        -- Gửi lệnh mua
+                        ReplicatedStorage.Remotes.BuySeed:FireServer("TomatoSeed")
+                        wait(Config.PlantDelay)
+                    end
+                end
+            end
+        end
+        wait(0.5)
+    end
+end)
+
+-- ====== TỰ ĐỘNG TƯỚI ======
+spawn(function()
+    while true do
+        if Config.AutoWater then
+            local plant, dist = GetNearestPlant(50)
+            if plant and dist < 50 then
+                MoveTo(plant.PrimaryPart.Position)
+                if UseTool("WateringCan") then
+                    wait(Config.WaterDelay)
+                    InteractWith(plant.PrimaryPart)
+                    wait(Config.WaterDelay)
+                end
+            end
+        end
+        wait(0.5)
+    end
+end)
+
+-- ====== TỰ ĐỘNG THU HOẠCH ======
+spawn(function()
+    while true do
+        if Config.AutoHarvest then
+            for _, v in pairs(Workspace:GetDescendants()) do
+                if v:IsA("Model") and v:FindFirstChild("Fruit") and v:FindFirstChild("Ready") then
+                    local pos = v:FindFirstChild("Head") or v.PrimaryPart
+                    if pos then
+                        local dist = (Root.Position - pos.Position).Magnitude
+                        if dist < 30 then
+                            MoveTo(pos.Position)
+                            if UseTool("Scythe") then
+                                wait(Config.HarvestDelay)
+                                InteractWith(pos)
+                                wait(Config.HarvestDelay)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        wait(0.5)
+    end
+end)
+
+-- ====== TỰ ĐỘNG BÁN ======
+spawn(function()
+    while true do
+        if Config.AutoSell then
+            local sellBox = Workspace:FindFirstChild("SellBox")
+            if sellBox then
+                MoveTo(sellBox.PrimaryPart.Position)
+                if UseTool("SellBox") then
+                    wait(Config.SellDelay)
+                    InteractWith(sellBox.PrimaryPart)
+                    wait(Config.SellDelay)
+                end
+            end
+        end
+        wait(1)
+    end
+end)
+
+-- ====== TỰ ĐỘNG BÓN PHÂN ======
+spawn(function()
+    while true do
+        if Config.AutoFertilize then
+            local plant, dist = GetNearestPlant(30)
+            if plant and dist < 30 then
+                MoveTo(plant.PrimaryPart.Position)
+                if UseTool("Fertilizer") then
+                    wait(1)
+                    InteractWith(plant.PrimaryPart)
+                    wait(1)
+                end
+            end
+        end
+        wait(2)
+    end
+end)
+
+-- ====== TỰ ĐỘNG NÂNG CẤP ======
+spawn(function()
+    while true do
+        if Config.AutoUpgrade then
+            local upgradeNPC = Workspace:FindFirstChild("UpgradeNPC")
+            if upgradeNPC then
+                MoveTo(upgradeNPC.PrimaryPart.Position)
+                InteractWith(upgradeNPC.PrimaryPart)
+                wait(0.5)
+                ReplicatedStorage.Remotes.Upgrade:FireServer("Speed")
+                wait(0.5)
+                ReplicatedStorage.Remotes.Upgrade:FireServer("Yield")
+                wait(0.5)
+            end
+        end
+        wait(5)
+    end
+end)
+
+-- ====== TỰ ĐỘNG NHIỆM VỤ ======
+spawn(function()
+    while true do
+        if Config.AutoQuest then
+            local questNPC = Workspace:FindFirstChild("QuestNPC")
+            if questNPC then
+                MoveTo(questNPC.PrimaryPart.Position)
+                InteractWith(questNPC.PrimaryPart)
+                wait(0.5)
+                -- Nhận nhiệm vụ
+                ReplicatedStorage.Remotes.Quest:FireServer("Accept")
+                wait(1)
+                -- Hoàn thành nếu đủ điều kiện
+                ReplicatedStorage.Remotes.Quest:FireServer("Complete")
+                wait(1)
+            end
+        end
+        wait(10)
+    end
+end)
+
+-- ====== TỰ NHẶT VẬT PHẨM ======
+spawn(function()
+    while Config.AutoCollect do
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v:IsA("BasePart") and (v.Name:find("Drop") or v.Name:find("Coin") or v.Name:find("Seed")) then
+                local dist = (Root.Position - v.Position).Magnitude
+                if dist < 30 then
+                    MoveTo(v.Position)
+                    wait(0.3)
+                end
+            end
+        end
+        wait(0.5)
+    end
+end)
+
+-- ====== ESP ======
+if Config.ESP then
+    local function CreateESP(obj, color, size)
+        if not obj:FindFirstChild("ESPBox") then
+            local box = Instance.new("BoxHandleAdornment")
+            box.Name = "ESPBox"
+            box.Adornee = obj
+            box.Size = size or Vector3.new(3, 3, 3)
+            box.Color3 = color or Color3.new(0, 1, 0)
+            box.Transparency = 0.5
+            box.AlwaysOnTop = true
+            box.ZIndex = 10
+            box.Parent = obj
+        end
+    end
+
+    spawn(function()
+        while true do
+            if Config.ESP then
+                for _, v in pairs(Workspace:GetDescendants()) do
+                    if v:IsA("Model") and v:FindFirstChild("Fruit") then
+                        CreateESP(v, Color3.new(0, 1, 0), Vector3.new(2, 4, 2))
+                    end
+                    if v:IsA("BasePart") and v.Name:find("Seed") then
+                        CreateESP(v, Color3.new(1, 1, 0), Vector3.new(1, 1, 1))
+                    end
+                end
+            end
+            wait(0.5)
+        end
+    end)
+end
+
+-- ====== TELEPORT ĐẾN VƯỜN ======
+if Config.TeleportToGarden then
+    local garden = Workspace:FindFirstChild("Garden")
+    if garden then
+        MoveTo(garden.PrimaryPart.Position)
+    end
+end
+
+-- ====== GUI (NÂNG CAO) ======
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bananahub/scripts/main/lib.lua"))()
+local Window = Library:CreateWindow("GROW A GARDEN 2 HUB")
+
+local AutoTab = Window:CreateTab("AUTO")
+AutoTab:CreateToggle("Tự Động Trồng", function(v) Config.AutoPlant = v end)
+AutoTab:CreateToggle("Tự Động Tưới", function(v) Config.AutoWater = v end)
+AutoTab:CreateToggle("Tự Động Thu Hoạch", function(v) Config.AutoHarvest = v end)
+AutoTab:CreateToggle("Tự Động Bán", function(v) Config.AutoSell = v end)
+AutoTab:CreateToggle("Tự Động Bón Phân", function(v) Config.AutoFertilize = v end)
+AutoTab:CreateToggle("Tự Động Mua Hạt", function(v) Config.AutoBuySeeds = v end)
+AutoTab:CreateToggle("Tự Động Nâng Cấp", function(v) Config.AutoUpgrade = v end)
+AutoTab:CreateToggle("Tự Động Nhiệm Vụ", function(v) Config.AutoQuest = v end)
+AutoTab:CreateToggle("Tự Nhặt Vật Phẩm", function(v) Config.AutoCollect = v end)
+
+local MiscTab = Window:CreateTab("MISC")
+MiscTab:CreateToggle("ESP", function(v) Config.ESP = v end)
+MiscTab:CreateToggle("Chế Độ Nhanh", function(v) Config.FastMode = v end)
+MiscTab:CreateToggle("Teleport Đến Vườn", function(v) 
+    Config.TeleportToGarden = v
+    if v then
+        local garden = Workspace:FindFirstChild("Garden")
+        if garden then MoveTo(garden.PrimaryPart.Position) end
+    end
+end)
+
+local SettingsTab = Window:CreateTab("SETTINGS")
+SettingsTab:CreateSlider("Delay Trồng (s)", 0.5, 5, 1, function(v) Config.PlantDelay = v end)
+SettingsTab:CreateSlider("Delay Tưới (s)", 0.5, 5, 2, function(v) Config.WaterDelay = v end)
+SettingsTab:CreateSlider("Delay Thu Hoạch (s)", 0.5, 5, 1.5, function(v) Config.HarvestDelay = v end)
+SettingsTab:CreateSlider("Delay Bán (s)", 0.5, 5, 1, function(v) Config.SellDelay = v end)
+
+print("Grow A Garden 2 Script đã tải! (full tính năng)")
